@@ -1,6 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { AnalysisResult } from "../types";
 
+// Объявляем глобальную константу, которую мы определили в vite.config.ts
+declare const __APP_API_KEY__: string | undefined;
+
 // Constants for image compression to avoid payload size limits
 // Reduced to 800px / 0.6 quality to prevent XHR/RPC errors on mobile networks or with high-res cameras
 const MAX_DIMENSION = 800;
@@ -11,13 +14,17 @@ export const analyzeSafetyImage = async (
   userDescription: string
 ): Promise<AnalysisResult> => {
   try {
-    // Explicitly check if the key was injected by Vite
-    if (!process.env.API_KEY) {
-        throw new Error("Ключ API не найден! Убедитесь, что в настройках Vercel (Environment Variables) добавлена переменная 'API_KEY' и выполнен Redeploy.");
+    // Получаем ключ из глобальной константы, "запеченной" сборщиком Vite
+    const apiKey = typeof __APP_API_KEY__ !== 'undefined' ? __APP_API_KEY__ : undefined;
+
+    // Explicitly check if the key is present
+    if (!apiKey) {
+        throw new Error("Ключ API не найден! Убедитесь, что в настройках Vercel (Settings -> Environment Variables) добавлена переменная с именем 'API_KEY' и выполнен Redeploy (пересборка) проекта.");
     }
 
     // Guidelines strictly state: "The API key must be obtained exclusively from the environment variable process.env.API_KEY"
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // In our build setup, apiKey variable holds this value securely.
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     // Compress and convert file to base64
     // This avoids "Rpc failed due to xhr error" (code 6) caused by large payloads
@@ -95,7 +102,7 @@ export const analyzeSafetyImage = async (
     // Handle specific RPC/XHR errors commonly caused by size or network
     if (error.message?.includes("500") || error.message?.includes("xhr error") || error.message?.includes("code: 6")) {
         errorMessage = "Ошибка передачи данных. Изображение слишком большое или нестабильная сеть. Мы применили дополнительное сжатие. Пожалуйста, попробуйте еще раз.";
-    } else if (error.message?.includes("API Key") || error.message?.includes("API_KEY")) {
+    } else if (error.message?.includes("API Key") || error.message?.includes("API_KEY") || error.message?.includes("Ключ API")) {
         errorMessage = error.message; // Show our custom API key error
     } else {
         errorMessage = error.message || "Произошла неизвестная ошибка при обращении к ИИ.";

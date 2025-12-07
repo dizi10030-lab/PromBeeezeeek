@@ -7,17 +7,18 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
   // Получаем ключ из переменных среды Vercel (process.env) или локального .env
+  // Порядок важен: сначала системные переменные Vercel
   const apiKey = process.env.API_KEY || env.API_KEY || env.VITE_API_KEY;
+
+  console.log(`[Vite Build] API Key status: ${apiKey ? 'Found' : 'Missing'}`);
 
   return {
     plugins: [react()],
     define: {
-      // ЖЕСТКАЯ ЗАМЕНА: В коде 'process.env.API_KEY' будет заменено на реальную строку с ключом.
-      // Это гарантирует, что ключ попадет в браузерный бандл.
-      'process.env.API_KEY': JSON.stringify(apiKey),
-      
-      // Заглушка для объекта process, чтобы избежать ошибки "process is not defined"
-      'process.env': {}
+      // Создаем глобальную константу с именем __APP_API_KEY__.
+      // Значение оборачивается в JSON.stringify, чтобы в JS коде это стало строкой "ваш_ключ".
+      // Если ключа нет, будет значение undefined.
+      '__APP_API_KEY__': JSON.stringify(apiKey),
     }
   };
 });

@@ -11,8 +11,12 @@ export const analyzeSafetyImage = async (
   userDescription: string
 ): Promise<AnalysisResult> => {
   try {
+    // Explicitly check if the key was injected by Vite
+    if (!process.env.API_KEY) {
+        throw new Error("Ключ API не найден! Убедитесь, что в настройках Vercel (Environment Variables) добавлена переменная 'API_KEY' и выполнен Redeploy.");
+    }
+
     // Guidelines strictly state: "The API key must be obtained exclusively from the environment variable process.env.API_KEY"
-    // and "Assume this variable is pre-configured, valid, and accessible".
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // Compress and convert file to base64
@@ -91,8 +95,8 @@ export const analyzeSafetyImage = async (
     // Handle specific RPC/XHR errors commonly caused by size or network
     if (error.message?.includes("500") || error.message?.includes("xhr error") || error.message?.includes("code: 6")) {
         errorMessage = "Ошибка передачи данных. Изображение слишком большое или нестабильная сеть. Мы применили дополнительное сжатие. Пожалуйста, попробуйте еще раз.";
-    } else if (error.message?.includes("API Key")) {
-        errorMessage = error.message;
+    } else if (error.message?.includes("API Key") || error.message?.includes("API_KEY")) {
+        errorMessage = error.message; // Show our custom API key error
     } else {
         errorMessage = error.message || "Произошла неизвестная ошибка при обращении к ИИ.";
     }

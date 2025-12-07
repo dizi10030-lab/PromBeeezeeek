@@ -4,19 +4,20 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
   
+  // Получаем ключ из переменных среды Vercel (process.env) или локального .env
+  const apiKey = process.env.API_KEY || env.API_KEY || env.VITE_API_KEY;
+
   return {
     plugins: [react()],
     define: {
-      // Correctly polyfill process.env.
-      // JSON.stringify is CRITICAL here, otherwise the key value is injected as raw code
-      // (e.g. AIza... becomes a variable name) causing syntax errors or undefined behavior.
-      'process.env': JSON.stringify({
-        API_KEY: env.API_KEY || env.VITE_API_KEY,
-        NODE_ENV: process.env.NODE_ENV || 'production'
-      })
+      // ЖЕСТКАЯ ЗАМЕНА: В коде 'process.env.API_KEY' будет заменено на реальную строку с ключом.
+      // Это гарантирует, что ключ попадет в браузерный бандл.
+      'process.env.API_KEY': JSON.stringify(apiKey),
+      
+      // Заглушка для объекта process, чтобы избежать ошибки "process is not defined"
+      'process.env': {}
     }
   };
 });

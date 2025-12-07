@@ -1,8 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { AnalysisResult } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 // Constants for image compression to avoid payload size limits
 // Reduced to 800px / 0.6 quality to prevent XHR/RPC errors on mobile networks or with high-res cameras
 const MAX_DIMENSION = 800;
@@ -13,6 +11,16 @@ export const analyzeSafetyImage = async (
   userDescription: string
 ): Promise<AnalysisResult> => {
   try {
+    // Initialize client lazily to avoid startup crashes if API_KEY is missing in env
+    // Accessing process.env.API_KEY here is safe because vite.config.ts defines 'process.env' object
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("API ключ не найден. Убедитесь, что переменная окружения API_KEY настроена в Vercel.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+
     // Compress and convert file to base64
     // This avoids "Rpc failed due to xhr error" (code 6) caused by large payloads
     const { base64, mimeType } = await compressImage(imageFile);

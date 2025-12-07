@@ -11,15 +11,9 @@ export const analyzeSafetyImage = async (
   userDescription: string
 ): Promise<AnalysisResult> => {
   try {
-    // Initialize client lazily to avoid startup crashes if API_KEY is missing in env
-    // Accessing process.env.API_KEY here is safe because vite.config.ts defines 'process.env' object
-    const apiKey = process.env.API_KEY;
-    
-    if (!apiKey) {
-      throw new Error("API ключ не найден. Убедитесь, что переменная окружения API_KEY настроена в Vercel.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    // Guidelines strictly state: "The API key must be obtained exclusively from the environment variable process.env.API_KEY"
+    // and "Assume this variable is pre-configured, valid, and accessible".
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // Compress and convert file to base64
     // This avoids "Rpc failed due to xhr error" (code 6) caused by large payloads
@@ -97,6 +91,8 @@ export const analyzeSafetyImage = async (
     // Handle specific RPC/XHR errors commonly caused by size or network
     if (error.message?.includes("500") || error.message?.includes("xhr error") || error.message?.includes("code: 6")) {
         errorMessage = "Ошибка передачи данных. Изображение слишком большое или нестабильная сеть. Мы применили дополнительное сжатие. Пожалуйста, попробуйте еще раз.";
+    } else if (error.message?.includes("API Key")) {
+        errorMessage = error.message;
     } else {
         errorMessage = error.message || "Произошла неизвестная ошибка при обращении к ИИ.";
     }

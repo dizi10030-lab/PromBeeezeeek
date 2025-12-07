@@ -10,11 +10,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Correctly polyfill process.env as an object literal. 
-      // This ensures that accessing 'process.env' does not throw "process is not defined".
-      'process.env': {
-        API_KEY: env.API_KEY
-      }
+      // Correctly polyfill process.env.
+      // JSON.stringify is CRITICAL here, otherwise the key value is injected as raw code
+      // (e.g. AIza... becomes a variable name) causing syntax errors or undefined behavior.
+      'process.env': JSON.stringify({
+        API_KEY: env.API_KEY || env.VITE_API_KEY,
+        NODE_ENV: process.env.NODE_ENV || 'production'
+      })
     }
   };
 });

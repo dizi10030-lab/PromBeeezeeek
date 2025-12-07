@@ -4,8 +4,9 @@ import { AnalysisResult } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Constants for image compression to avoid payload size limits
-const MAX_DIMENSION = 1024;
-const JPEG_QUALITY = 0.8;
+// Reduced to 800px / 0.6 quality to prevent XHR/RPC errors on mobile networks or with high-res cameras
+const MAX_DIMENSION = 800;
+const JPEG_QUALITY = 0.6;
 
 export const analyzeSafetyImage = async (
   imageFile: File,
@@ -39,24 +40,28 @@ export const analyzeSafetyImage = async (
 Проанализируй приложенное изображение на предмет нарушений ФНП.
     `;
 
+    // Explicitly using an array for contents to ensure SDK compatibility
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64,
+              },
             },
-          },
-          {
-            text: prompt,
-          },
-        ],
-      },
+            {
+              text: prompt,
+            },
+          ],
+        }
+      ],
       config: {
         systemInstruction: systemInstruction,
-        temperature: 0.2, // Low temperature for more factual/analytical responses
+        temperature: 0.2,
       },
     });
 
@@ -82,8 +87,8 @@ export const analyzeSafetyImage = async (
     
     let errorMessage = "Не удалось выполнить анализ.";
     // Handle specific RPC/XHR errors commonly caused by size or network
-    if (error.message?.includes("500") || error.message?.includes("xhr error")) {
-        errorMessage = "Ошибка передачи данных. Возможно, файл слишком сложный для обработки или произошел сбой сети. Мы автоматически сжали изображение, но если ошибка повторяется, попробуйте другое фото.";
+    if (error.message?.includes("500") || error.message?.includes("xhr error") || error.message?.includes("code: 6")) {
+        errorMessage = "Ошибка передачи данных. Изображение слишком большое или нестабильная сеть. Мы применили дополнительное сжатие. Пожалуйста, попробуйте еще раз.";
     } else {
         errorMessage = error.message || "Произошла неизвестная ошибка при обращении к ИИ.";
     }
@@ -126,7 +131,7 @@ const compressImage = (file: File): Promise<{ base64: string; mimeType: string }
         
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            // If canvas context fails, fallback to original (risky but better than crashing)
+            // Fallback if canvas fails
             const result = event.target?.result as string;
             const base64 = result.split(',')[1];
             resolve({ base64, mimeType: file.type });
